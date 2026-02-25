@@ -33,12 +33,30 @@ async def frame(url: str = Query(default=DEFAULT_URL)):
             )
 
             page = await browser.new_page(viewport={"width": 1280, "height": 720})
-
             await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-            await page.wait_for_timeout(4000)
+            await page.wait_for_timeout(2000)
+
+            # 1) Пытаемся кликнуть по кнопке Play (если есть)
+            # (на разных страницах селекторы могут отличаться, поэтому делаем несколько попыток)
+            for selector in [
+                "button[aria-label*='Play']",
+                "button[aria-label*='Воспроизвести']",
+                ".vjs-big-play-button",
+                "text=▶",
+                "svg[aria-label*='Play']",
+            ]:
+                try:
+                    el = await page.query_selector(selector)
+                    if el:
+                        await el.click(timeout=1000)
+                        break
+                except:
+                    pass
+
+            # 2) Ждём, пока появится хоть какой-то "живой" кадр
+            await page.wait_for_timeout(5000)
 
             png_bytes = await page.screenshot(type="png")
-
             await browser.close()
 
         return Response(content=png_bytes, media_type="image/png")
